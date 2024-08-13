@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import axios from 'axios';
 
 export default function Home() {
+  const [fetchASubmittedJokeId, setFetchASubmittedJokeId] = useState('');
   const [fetchASubmittedJoke, setFetchASubmittedJoke] = useState('');
   const [fetchAModeratedJoke, setFetchAModeratedJoke] = useState('');
   const [fetchASubmittedJokeType, setFetchASubmittedJokeType] = useState('');
@@ -18,6 +19,8 @@ export default function Home() {
   const [isEditing, setIsEditing] = useState(false);
   const [editedJoke, setEditedJoke] = useState('');
   const [editedJokeType, setEditedJokeType] = useState('');
+  const [isJokeEditSuccess, setIsJokeEditSuccess] = useState(false);
+  const [isApprovalSuccess, setIsApprovalSuccess] = useState(false);
 
   useEffect(() => {
     axios.get('http://localhost:3001/jokes/types')
@@ -39,6 +42,7 @@ export default function Home() {
   const fetchSubmittedJoke = async () => {
     if (type) {
       const response = await axios.get('http://localhost:3001/jokes/joke', { params: { type } });
+      setFetchASubmittedJokeId(response.data._id);
       setFetchASubmittedJoke(response.data.joke);
       setFetchASubmittedJokeType(response.data.type);
     } else {
@@ -63,11 +67,43 @@ export default function Home() {
     setIsEditing(true);
   };
 
+  const handleApprove = async () => {
+    try {
+      const response = await axios.post('http://localhost:3003/jokes/approve', { content : { joke: fetchASubmittedJoke, type: fetchASubmittedJokeType }});
+
+      if(response.status == 201) {
+        setIsApprovalSuccess(true);
+        setTimeout(() => setIsApprovalSuccess(false), 2000);
+      }
+    } catch (error) {
+      console.error('Error in Approval');
+    }
+  }
+
   const handleCancel = () => {
     setEditedJoke(fetchASubmittedJoke);
     setEditedJokeType(fetchASubmittedJokeType);
     setIsEditing(false);
   };
+
+  const handleSubmitModeratedJoke = async (e: any) => {
+    e.preventDefault();
+    if(!editedJoke || !editedJokeType) {
+      alert("Please provide details");
+      return;
+    }
+
+    try {
+      const response = await axios.put(`http://localhost:3003/jokes/${fetchASubmittedJokeId}`, { content : { editedJoke, editedJokeType } });
+      if(response.status == 201) {
+        setFetchASubmittedJoke('');
+        setIsJokeEditSuccess(true)
+        setTimeout(() => setIsJokeEditSuccess(false), 2000);
+      }
+    } catch (error) {
+        console.error('Error updating the joke', error);
+    }
+  }
 
   const redirectToModerator = async () => {
     setIsModeratorLogin(true);
@@ -77,9 +113,10 @@ export default function Home() {
     setEmail('');
     setPassword('');
     setIsModeratorLogin(false);
+    setIsModeratorAccessSuccess(false);
   }
 
-  const handleSubmit = async (e : any) => {
+  const handleLogin = async (e : any) => {
     e.preventDefault();
     if (!email || !password) {
         alert("Please provide the details");
@@ -95,6 +132,11 @@ export default function Home() {
     } catch (error) {
       console.error('Error sign in: ', error);
     }
+  }
+
+  const handleSignOut = () => {
+    setIsModeratorAccessSuccess(false);
+    setIsModeratorLogin(true);
   }
 
   return (
@@ -171,7 +213,7 @@ export default function Home() {
           <div>Please Sign In as a Moderator</div>
 
           <div className="w-full max-w-xs">
-            <form className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" onSubmit={handleSubmit}>
+            <form className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" onSubmit={handleLogin}>
               <div className="mb-4">
                 <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
                   Email
@@ -219,7 +261,7 @@ export default function Home() {
 
             <button
               onClick={fetchSubmittedJoke}
-              style={{ backgroundColor: '#28a745', color: '#333', border: '1px solid #ccc', padding: '10px', borderRadius: '4px', fontSize: '16px', marginBottom: '10px' }}
+              style={{ backgroundColor: '#28a745', color: '#333', border: '1px solid #ccc', padding: '10px', borderRadius: '4px', fontSize: '14px', marginBottom: '10px' }}
             >
               Get A Random Joke to Moderate
             </button>
@@ -256,7 +298,7 @@ export default function Home() {
               {isEditing ? (
                 <>
                   <button
-                    onClick={handleSubmit}
+                    onClick={handleSubmitModeratedJoke}
                     style={{ backgroundColor: '#007bff', color: '#fff', border: '1px solid #ccc', padding: '10px', borderRadius: '4px', fontSize: '16px', marginRight: '10px' }}
                   >
                     Submit
@@ -269,17 +311,43 @@ export default function Home() {
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={handleEdit}
-                  style={{ backgroundColor: '#ffc107', color: '#333', border: '1px solid #ccc', padding: '10px', borderRadius: '4px', fontSize: '16px' }}
-                >
-                  Edit
-                </button>
+                <>
+                  <div style={{marginTop: '30px'}}>
+                    <button
+                    onClick={handleEdit}
+                    style={{ backgroundColor: '#ffc107', color: '#333', border: '1px solid #ccc', padding: '5px 20px', borderRadius: '4px', fontSize: '16px', marginRight : '20px' }}
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={handleApprove}
+                      style={{ backgroundColor: '#FF0000', color: '#333', border: '1px solid #ccc', padding: '5px 20px', borderRadius: '4px', fontSize: '16px' }}
+                    >
+                      Approve
+                    </button>
+                  </div>                  
+                </>
               )}
             </div>
               </>
           }
+
+          <div style={{marginTop : '20px'}}>
+            {isJokeEditSuccess && <p style={{ color: '#28a745', fontWeight: "bold", textAlign: 'center' }}>Succesfully updated the Joke !</p>}
+          </div>
+
+          <div style={{marginTop : '20px'}}>
+            {isApprovalSuccess && <p style={{ color: '#FF0000', fontWeight: "bold", textAlign: 'center' }}>Succesfully approved the Joke !</p>}
+          </div>
         </div>
+        
+          <div style={{marginTop : '40px'}}>
+            <button onClick={handleSignOut} style={{ backgroundColor: '#24a0ed', border: '1px solid #ccc', padding: '10px', borderRadius: '4px', fontSize: '12px', marginBottom: '10px', marginRight: "20px"}}>
+              <h1>Sign Out</h1>
+            </button>
+          </div>
+
         </>
       }
     </div>
