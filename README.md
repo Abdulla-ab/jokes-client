@@ -3,12 +3,12 @@
 UI for Joke application
 
 # Used technologies
-NextJs
+NextJs,
 TypeScript
 
 # Used Tools
-NextJs Documentation
-Git
+NextJs Documentation,
+Git,
 ChatGPT
 
 # Install dependencies
